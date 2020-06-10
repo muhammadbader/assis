@@ -1,6 +1,9 @@
-global initCo
+global startCo
 global Randomxy
-
+global resume
+global k;; for the scheduler
+global N;; for the scheduler
+global R
 
 extern scheduler ;; the main function for the scheduler
 extern drones ;; the main function for the drones
@@ -17,6 +20,7 @@ section .data
         alpha: resw 1
         targets_Hit: resb 1
         next: resb 4
+        dead: resb 1
     endstruc
     
     lfsr: dw 0
@@ -46,7 +50,7 @@ section .bss
     stateNumber: resb 16
     mulNumber: resb 4
     firstDrone: resb 10
-    lastDrone: resb 10 ;; we actually need just 9 bytes 
+    lastDrone: resb 10  
 
 section .text
     align 16
@@ -189,6 +193,7 @@ main:
     mov byte[ebx+32], -1
     mov tword[lastDrone],0
     call createNewTarget
+    call createTheDrones
 
 createNewTarget:
     call Randomxy
@@ -207,23 +212,23 @@ createNewTarget:
     basicx87
     fstp dword[y_target]
 
-    call createTheDrones
     ret
 
 createTheDrones:
 
-    ;;struct size is 9 bytes == 36 bits
+    ;;struct size is 10 bytes == 40 bits
     mov byte[droneID],0
     mov eax,dword[N]
     mov dword[tmpN],eax
     .droneloop:
-        push 36
+        push 40
         call malloc
         add esp,4
         mov cl,byte[droneID]
         mov byte[eax],cl ;; the first byte in the struct is the id
         mov byte[eax + 28],0 ;;the hit targets
         mov dword[eax + 32],0 ;; this drone is the last drone in the current list
+        mov dword[eax + 36],0 ;; the drone is not dead yet
         cmp dword[tmpN],0
         je initRoutine
 
@@ -294,7 +299,11 @@ startCo:
     mov [mainSP],esp
     mov [curr_cor],ebx ;;store the current co-routine
     jmp resume.do_resume
-
+endCo:
+    mov esp,[mainSP]
+    popad 
+    ret
+    
 resume:;; ebx holds the next Cor
     pushfd
     pushad
