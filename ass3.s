@@ -1,3 +1,4 @@
+align 16
 global startCo
 global Randomxy
 global resume
@@ -8,11 +9,14 @@ global createNewTarget
 global firstDrone
 global x_target
 global y_target
-
+global lfsr
+global initState
+global curr_cor
 
 extern scheduler ;; the main function for the scheduler
 extern drones ;; the main function for the drones
 extern printer ;; the main function in the printer
+extern createTarget
 
 section .data
     droneID: db 0
@@ -26,9 +30,10 @@ section .data
         targets_Hit: resb 1
         next: resb 4
         dead: resb 1
+        speed: resd 1
     endstruc
     
-    lfsr: dw 0
+    lfsr: dd 0
     initState: dw 0
     counter: dd 0
     x_target: dq 0
@@ -187,8 +192,8 @@ main:
     mov edx,printer
     call initCo
     inc ebx ;; and finally we will amke the target as co_routine 3
-    ;; mov edx, target
-    ;; call initCo
+    mov edx, createTarget
+    call initCo
 
     finit       ;;initialize the x87 thing
     mov dword[stateNumber],65535
@@ -220,19 +225,20 @@ createNewTarget:
 
 createTheDrones:
 
-    ;;struct size is 10 bytes == 40 bits
-    mov byte[droneID],0
+    ;;struct size is 17 bytes == 68 bits
+    mov byte[droneID],1
     mov eax,dword[N]
     mov dword[tmpN],eax
     .droneloop:
-        push 40
+        push 68
         call malloc
         add esp,4
         mov cl,byte[droneID]
         mov byte[eax],cl ;; the first byte in the struct is the id
         mov byte[eax + 28],0 ;;the hit targets
         mov dword[eax + 32],0 ;; this drone is the last drone in the current list
-        mov dword[eax + 36],0 ;; the drone is not dead yet
+        mov dword[eax + 48],0 ;; the drone is not dead yet
+        mov dword[eax + 52],0 ;; initial speed
         cmp dword[tmpN],0
         je initRoutine
 
@@ -319,7 +325,6 @@ resume:;; ebx holds the next Cor
         popfd
         ret
     
-
 initRoutine:
     mov esi,0
     mov eax,dword[N]

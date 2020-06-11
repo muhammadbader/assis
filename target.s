@@ -1,5 +1,4 @@
 extern resume
-extern Randomxy
 extern createNewTarget
 
 global createTarget
