@@ -32,7 +32,7 @@ scheduler:
     pop ebx
     mov ecx,0
 noPrint:
-        ;;if (i/N)%R == 0 && i%(N-1) ==0 //R rounds have passed
+        ;;if (i/N)%R == 0 && i%(N-1) == 0 //R rounds have passed
         ;; edx deals with the Round Robih
     pushad
     mov esi,edx ;; esi = i

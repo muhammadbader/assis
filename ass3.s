@@ -348,5 +348,6 @@ initRoutine:
         call startCo
 
 end_program:
+    ;;todo: free the drones
     finish
     nop
