@@ -27,9 +27,9 @@ section .data
         x: resw 1 
         y: resw 1
         alpha: resw 1
-        targets_Hit: resb 1
-        next: resb 4
-        dead: resb 1
+        targets_Hit: resb 1 ;;32 bits
+        next: resb 4 ;;48 bits
+        dead: resb 1 ;; 52 bits
         speed: resd 1
     endstruc
     

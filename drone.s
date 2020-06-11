@@ -18,16 +18,46 @@ section .bss
     currDrone: resd 1
     oldAlpha: resw 1
     oldSpd: resd 1
+    crdnt: resw 1
 section .data
     delta_alpha: qd 0
     newSpeed: qd 0
     bias: dd 0
+    rad: resq 1
+    clamp: resd 1
 
 section .rodata
     error: db "Drone not found",10,0
 
 
 section .text
+
+%macro calcBounds 0
+
+    mov dword[clamp],100 ;;the board limits
+    fld dword[clamp]
+    fcomi st0, st1 ;; st0 = 100 and st1 = new X
+    ja %%dontWrapandChecklessThanZero
+    fsubp
+    fstp word[crdnt]
+    jmp %%end
+%%dontWrapandChecklessThanZero:
+    fstp dword[clamp];; pop the 100
+    mov dword[clamp],0
+    fld dword[clamp]
+    fcomi
+    jb dontWrap
+    faddp
+    mov dword[clamp],100
+    fld dword[clamp]
+    faddp
+    fstp word[crdnt]
+    jmp %%end
+%%dontWrap:
+    fstp dword[clamp];; take out the o we pushed in
+    fstp word[crdnt] ;; save the new X coordinate
+%%end
+%endmacro
 
 drones:
     finit
@@ -97,11 +127,104 @@ foundHim:;;ebx points to the right drone
     mov word[oldAlpha],ax
     mov eax,dword[ebx+52]
     mov dword[oldSpd],eax
-    
 
+calcX:
+    fld word[oldAlpha]
+    fldpi
+    fmul
+    mov dword[mulNumber],180
+    fidiv dword[mulNumber]
+    fstp qword[rad]
+    fld qword[rad]
+    fcos
+    fmul dword[oldSpd]
+    fld dword[ebx+4] ;; load the x location of the drone
+    faddp
+    calcBounds
+    mov ax, word[crdnt]
+    mov word[ebx+4],ax
+;     mov dword[clamp],100 ;;the board limits
+;     fld dword[clamp]
+;     fcomi st0, st1 ;; st0 = 100 and st1 = new X
+;     ja dontWrapandChecklessThanZero
+;     fsubp
+;     fstp word[ebx+4]
+;     jmp %%end
+; dontWrapandChecklessThanZero:
+;     fstp dword[clamp];; pop the 100
+;     mov dword[clamp],0
+;     fld dword[clamp]
+;     fcomi
+;     jb dontWrap
+;     faddp
+;     mov dword[clamp],100
+;     fld dword[clamp]
+;     faddp
+;     fstp word[ebx+4]
+;     jmp %%end
+; dontWrap:
+;     fstp dword[clamp];; take out the o we pushed in
+;     fstp word[ebx+4] ;; save the new X coordinate
+    
+calcY:
+    fld qword[rad]
+    fsin
+    fmul dword[oldSpd]
+    fld dword[ebx+12]
+    faddp        ;; calc the new y position
+    calcBounds
+    mov ax, word[crdnt]
+    mov word[ebx+12],ax
+
+saveNewAlpha:
+    fld word[oldAlpha]
+    fadd qword[delta_alpha]
+    mov dword[clamp],360
+    fld dword[clamp]
+    fcomi st0, st1
+    ja checkAlphaLessThatZero
+    fsubp
+    fstp word[ebx+20]
+    jmp changeSpeed
+checkAlphaLessThatZero:
+    fsub dword[clamp];; make st0 = 0
+    fcomi st0, st1
+    jb dontDoAThing
+    fadd dword[clamp]
+    faddp
+    fstp word[ebx+20]
+    jmp changeSpeed
+dontDoAThing:
+    faddp
+    fstp word[ebx+20]
+
+changeSpeed:
+    fld word[newSpeed]
+    fadd dword[ebx+52]
+    mov dword[clamp],100
+    fld dword[clamp]
+    fcomi st0, st1
+    ja dontCutYet
+    fstp dword[ebx+52] ;; speed = 100
+    jmp newPosend
+dontCutYet:
+    fsub dword[clamp]
+    fcomi st0, st1
+    jb newSpeedy
+    fstp dword[ebx+52] ;; the speed is Zero
+    fstp dword[clamp] ;; clear the x87 stack
+newSpeedy:
+    faddp
+    fstp dword[ebx+52]
+newPosend:
     mov esp,ebp
     pop ebp
     ret
+
+
+mayDestroy:
+
+
 
 errorSearch:
     push error
