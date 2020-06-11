@@ -4,6 +4,11 @@ global resume
 global k;; for the scheduler
 global N;; for the scheduler
 global R
+global createNewTarget
+global firstDrone
+global x_target
+global y_target
+
 
 extern scheduler ;; the main function for the scheduler
 extern drones ;; the main function for the drones
@@ -211,7 +216,6 @@ createNewTarget:
 
     basicx87
     fstp dword[y_target]
-
     ret
 
 createTheDrones:
