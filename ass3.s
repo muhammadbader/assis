@@ -7,6 +7,7 @@ global N;; for the scheduler
 global R
 global createNewTarget
 global firstDrone
+global lastDrone
 global x_target
 global y_target
 global lfsr
@@ -54,13 +55,13 @@ section .bss
     mainSP: resd 1
     curr_cor: resd 1
     stcksz: equ 16*1024
-    maxCors: 100*100+2 ;; not sure about the number, but we need this to instantiate the cors array
+    maxCors: 100*100 ;; not sure about the number, but we need this to instantiate the cors array
     cors: resd maxCors ;; an array of co-routines top
     stacks: resb maxCors * stcksz
     stateNumber: resb 16
     mulNumber: resb 4
-    firstDrone: resb 10
-    lastDrone: resb 10  
+    firstDrone: resb 17
+    lastDrone: resb 17 
 
 section .text
     align 16
@@ -136,17 +137,31 @@ section .text
 %macro addDrone 0
     mov ebx, firstDrone
     cmp byte[ebx + 32],-1 ;;the first drone
-    je %%firstDrone
+    je %%_firstDrone
     mov ebx, lastDrone
     mov [ebx + 32],eax
     mov lastDrone, eax
     jmp %%end
-    %%firstDrone:
+    %%_firstDrone:
         mov firstDrone, eax
         mov lastDrone, eax
     %%end:
 %endmacro
 
+%macro freeDrones 0
+    mov ebx,firstDrone
+    %%loopFree:
+        mov eax,[ebx+32]
+        mov dword[lastDrone],eax
+        push ebx
+        call free
+        add esp,4
+        cmp dword[lastDrone],0
+        je %%end
+        mov ebx,dword[lastDrone]
+        jmp %%loopFree
+    %%end:
+%endmacro
 
 errorInput:
     push eax
@@ -237,7 +252,7 @@ createTheDrones:
         mov byte[eax],cl ;; the first byte in the struct is the id
         mov byte[eax + 28],0 ;;the hit targets
         mov dword[eax + 32],0 ;; this drone is the last drone in the current list
-        mov dword[eax + 48],0 ;; the drone is not dead yet
+        mov dword[eax + 48],1 ;; the drone is not dead yet
         mov dword[eax + 52],0 ;; initial speed
         cmp dword[tmpN],0
         je initRoutine
@@ -348,6 +363,7 @@ initRoutine:
         call startCo
 
 end_program:
-    ;;todo: free the drones
+    ;;free the drones --> done
+    freeDrones
     finish
     nop

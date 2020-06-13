@@ -223,7 +223,7 @@ newPosend:
 
 ; (*) Do forever
 mayDestroy:
-    ;;check if the drone can destroy the target --> ask forum
+    ;;todo: check if the drone can destroy the target --> ask forum
 
     ;; in case returned true
     call createTarget
