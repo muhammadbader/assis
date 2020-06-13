@@ -54,17 +54,20 @@ noPrint:
     div ecx
     cmp edx,0 ;; edx = i % (N-1)
     jne noElimination
+    ;; YES eliminate
     popad 
     mov edx,0 ;; start another round
     ;; here call the func to eliminate one of the drones
     call eliminateOne
-    dec [activeDrones]
+    dec dword[activeDrones]
+    jmp here2
 noElimination:
     popad
     inc edx
-    cmp [activeDrones],1
+here2:
+    cmp dword[activeDrones],1
     je theWinner
-    cmp ebx,[N]
+    cmp ebx-2,dword[N]
     je here
     jmp scheduler
 here:
@@ -74,11 +77,11 @@ here:
 theWinner:  ;; byte 48 indicated dead or alive ;; byte 32 gives the next
     mov ebx,firstDrone
     .winLoop:
-        cmp [ebx+48],0 ;; 0 indicated is the drone is dead
+        cmp byte[ebx+12],0 ;; 0 indicated is the drone is dead
         jne weHaveAWinner
-        cmp [ebx+32],0
+        cmp dword[ebx+8],0
         je errorNoWinner
-        mov ebx,[ebx+32]
+        mov ebx,[ebx+8]
     jmp .winLoop
 weHaveAWinner:
     mov eax,0
@@ -102,40 +105,40 @@ eliminateOne:
     pushad
 
     mov ebx,firstDrone
-    mov lastDrone,ebx
+    mov [lastDrone],ebx
         ;; hits = byte 28 in struct
 searchFristAlive:
-    cmp [ebx+48],1
+    cmp byte[ebx+12],1
     je .foundOne
-    mov ebx,[ebx+32];; if this drone is dead move to the next one
+    mov ebx,[ebx+8];; if this drone is dead move to the next one
     jmp searchFristAlive
     .foundOne:
         mov eax,0
-        mov al,byte[ebx+28]
+        mov al,byte[ebx+7]
         mov dword[minKills],eax ;; the starting point 
-        mov lastDrone,ebx ;; lastDrone holds the drone to be destroyed
-        mov ebx,[ebx+32]
+        mov [lastDrone],ebx ;; lastDrone holds the drone to be destroyed
+        mov ebx,[ebx+8]
     .searchMin:
-        cmp [ebx+48],1 
+        cmp byte[ebx+48],1 
         je .cmpMin  ;; if this drone is not dead
     .contSeach:
-        cmp [ebx+32],0
+        cmp dword[ebx+8],0
         je .finishSearchMin ;; we got to the end of the drones list
-        mov ebx,[ebx+32] ;; move next
+        mov ebx,[ebx+8] ;; move next
         jmp .searchMin
 
     .cmpMin: 
         mov eax,0
-        mov al,byte[ebx+28]
+        mov al,byte[ebx+7]
         cmp eax,dword[minKills]
         ja .contSeach
         mov dword[minKills],eax
-        mov lastDrone,ebx
+        mov [lastDrone],ebx
         jmp .contSeach
 
     .finishSearchMin: 
         mov ebx,lastDrone
-        mov [ebx+48],0
+        mov byte[ebx+12],0
         
     popad
     pop ebp

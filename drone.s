@@ -10,7 +10,8 @@ extern curr_cor
 extern firstDrone
 extern printf
 
-align 16
+global drones
+; align 16
 
 section .bss
     stateNumber: resb 16
@@ -19,12 +20,14 @@ section .bss
     oldAlpha: resw 1
     oldSpd: resd 1
     crdnt: resw 1
-section .data
-    delta_alpha: qd 0
-    newSpeed: qd 0
-    bias: dd 0
     rad: resq 1
     clamp: resd 1
+
+section .data
+    delta_alpha: dq 0
+    newSpeed: dq 0
+    bias: dd 0
+    tmp87: dq 0
 
 section .rodata
     error: db "Drone not found",10,0
@@ -39,24 +42,34 @@ section .text
     fcomi st0, st1 ;; st0 = 100 and st1 = new X
     ja %%dontWrapandChecklessThanZero
     fsubp
-    fstp word[crdnt]
+    fstp qword[tmp87]
+    mov ax,word[tmp87]
+    mov word[crdnt], ax
     jmp %%end
 %%dontWrapandChecklessThanZero:
-    fstp dword[clamp];; pop the 100
+    fstp qword[tmp87];; pop the 100
     mov dword[clamp],0
     fld dword[clamp]
     fcomi
-    jb dontWrap
+    jb %%dontWrap
     faddp
     mov dword[clamp],100
     fld dword[clamp]
     faddp
-    fstp word[crdnt]
+    fstp qword[tmp87]
+    mov ax,word[tmp87]
+    mov word[crdnt], ax
     jmp %%end
 %%dontWrap:
-    fstp dword[clamp];; take out the o we pushed in
-    fstp word[crdnt] ;; save the new X coordinate
-%%end
+   
+    fstp qword[tmp87];; take out the o we pushed in
+    mov eax,dword[tmp87]
+    mov dword[clamp], eax
+
+    fstp qword[tmp87];; save the new X coordinate
+    mov ax,word[tmp87]
+    mov word[crdnt], ax
+%%end:
 %endmacro
 
 drones:
@@ -115,7 +128,7 @@ newPos:
     cmp eax,dword[curr_cor]
     je foundHim
 nextDrone:
-    mov ebx,dword[ebx+32]
+    mov ebx,dword[ebx+8]
     cmp ebx,0
     je errorSearch
     mov eax,dword[ebx]
@@ -123,13 +136,13 @@ nextDrone:
     je foundHim
     jmp nextDrone
 foundHim:;;ebx points to the right drone
-    mov ax, word[ebx+20]
+    mov ax, word[ebx+5]
     mov word[oldAlpha],ax
-    mov eax,dword[ebx+52]
+    mov eax,dword[ebx+13]
     mov dword[oldSpd],eax
 
 calcX:
-    fld word[oldAlpha]
+    fild word[oldAlpha]
     fldpi
     fmul
     mov dword[mulNumber],180
@@ -138,11 +151,11 @@ calcX:
     fld qword[rad]
     fcos
     fmul dword[oldSpd]
-    fld dword[ebx+4] ;; load the x location of the drone
+    fld dword[ebx+1] ;; load the x location of the drone
     faddp
     calcBounds
     mov ax, word[crdnt]
-    mov word[ebx+4],ax
+    mov word[ebx+1],ax
 ;     mov dword[clamp],100 ;;the board limits
 ;     fld dword[clamp]
 ;     fcomi st0, st1 ;; st0 = 100 and st1 = new X
@@ -170,21 +183,23 @@ calcY:
     fld qword[rad]
     fsin
     fmul dword[oldSpd]
-    fld dword[ebx+12]
+    fild dword[ebx+3]
     faddp        ;; calc the new y position
     calcBounds
     mov ax, word[crdnt]
-    mov word[ebx+12],ax
+    mov word[ebx+3],ax
 
 saveNewAlpha:
-    fld word[oldAlpha]
+    fild word[oldAlpha]
     fadd qword[delta_alpha]
     mov dword[clamp],360
     fld dword[clamp]
     fcomi st0, st1
     ja checkAlphaLessThatZero
     fsubp
-    fstp word[ebx+20]
+    fstp qword[tmp87]
+    mov ax,word[tmp87]
+    mov word[ebx+5],ax
     jmp changeSpeed
 checkAlphaLessThatZero:
     fsub dword[clamp];; make st0 = 0
@@ -192,30 +207,40 @@ checkAlphaLessThatZero:
     jb dontDoAThing
     fadd dword[clamp]
     faddp
-    fstp word[ebx+20]
+    fstp qword[tmp87]
+    mov ax,word[tmp87]
+    mov word[ebx+5],ax
     jmp changeSpeed
 dontDoAThing:
     faddp
-    fstp word[ebx+20]
+    fstp qword[tmp87]
+    mov ax,word[tmp87]
+    mov word[ebx+5],ax
 
 changeSpeed:
-    fld word[newSpeed]
-    fadd dword[ebx+52]
+    fild word[newSpeed]
+    fadd dword[ebx+13]
     mov dword[clamp],100
     fld dword[clamp]
     fcomi st0, st1
     ja dontCutYet
-    fstp dword[ebx+52] ;; speed = 100
+    fstp qword[tmp87] ;; speed = 100
+    mov eax,dword[tmp87]
+    mov dword[ebx+13],eax
     jmp newPosend
 dontCutYet:
     fsub dword[clamp]
     fcomi st0, st1
     jb newSpeedy
-    fstp dword[ebx+52] ;; the speed is Zero
-    fstp dword[clamp] ;; clear the x87 stack
+    fstp qword[tmp87] ;; the speed is Zero
+    mov eax,dword[tmp87]
+    mov dword[ebx+13],eax
+    fstp qword[tmp87] ;; clear the x87 stack
 newSpeedy:
     faddp
-    fstp dword[ebx+52];; save the new speed
+    fstp qword[tmp87] ;; save the new speed
+    mov eax,dword[tmp87]
+    mov dword[ebx+13],eax
 newPosend:
     mov esp,ebp
     pop ebp
